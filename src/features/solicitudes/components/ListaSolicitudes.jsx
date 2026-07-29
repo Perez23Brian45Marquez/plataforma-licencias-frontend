@@ -1,13 +1,13 @@
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
-import { useAuth } from '../../auth/context/AuthContext';
-import { useSolicitudes } from '../hooks/useSolicitudes';
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { useAuth } from "../../auth/context/AuthContext";
+import { useSolicitudes } from "../hooks/useSolicitudes";
 
 const ESTADO_LABELS = {
-  pendiente: 'Pendiente',
-  en_revision: 'En revisión',
-  aprobada: 'Aprobada',
-  rechazada: 'Rechazada',
+  pendiente: "Pendiente",
+  en_revision: "En revisión",
+  aprobada: "Aprobada",
+  rechazada: "Rechazada",
 };
 
 export default function ListaSolicitudes() {
@@ -16,11 +16,17 @@ export default function ListaSolicitudes() {
   const { solicitudes, meta, loading, error, recargar } = useSolicitudes(page);
 
   if (loading) return <p>Cargando solicitudes...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
 
   return (
-    <div style={{ maxWidth: 900, margin: '40px auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ maxWidth: 900, margin: "40px auto" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <h2>Solicitudes ({meta?.total ?? 0})</h2>
         <div>
           <span style={{ marginRight: 12 }}>
@@ -30,13 +36,22 @@ export default function ListaSolicitudes() {
         </div>
       </div>
 
-      {user.role === 'estudiante' && (
+      {user.role === "estudiante" && (
         <Link to="/solicitudes/nueva">
           <button style={{ marginBottom: 16 }}>+ Nueva solicitud</button>
         </Link>
       )}
+      {user.role === "administrador" && (
+        <Link to="/tipos-licencia" style={{ marginRight: 12 }}>
+          Gestionar tipos de licencia
+        </Link>
+      )}
 
-      <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table
+        border="1"
+        cellPadding="8"
+        style={{ width: "100%", borderCollapse: "collapse" }}
+      >
         <thead>
           <tr>
             <th>ID</th>
@@ -50,7 +65,9 @@ export default function ListaSolicitudes() {
         <tbody>
           {solicitudes.length === 0 && (
             <tr>
-              <td colSpan="6" style={{ textAlign: 'center' }}>No hay solicitudes.</td>
+              <td colSpan="6" style={{ textAlign: "center" }}>
+                No hay solicitudes.
+              </td>
             </tr>
           )}
           {solicitudes.map((s) => (
@@ -73,10 +90,13 @@ export default function ListaSolicitudes() {
           <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
             Anterior
           </button>
-          <span style={{ margin: '0 12px' }}>
+          <span style={{ margin: "0 12px" }}>
             Página {meta.currentPage} de {meta.lastPage}
           </span>
-          <button disabled={page >= meta.lastPage} onClick={() => setPage((p) => p + 1)}>
+          <button
+            disabled={page >= meta.lastPage}
+            onClick={() => setPage((p) => p + 1)}
+          >
             Siguiente
           </button>
         </div>
