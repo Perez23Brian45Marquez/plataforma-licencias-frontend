@@ -13,7 +13,20 @@ const ESTADO_LABELS = {
 export default function ListaSolicitudes() {
   const { user, logout } = useAuth();
   const [page, setPage] = useState(1);
-  const { solicitudes, meta, loading, error, recargar } = useSolicitudes(page);
+  const [busqueda, setBusqueda] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState("");
+  const [qActivo, setQActivo] = useState("");
+  const { solicitudes, meta, loading, error, recargar } = useSolicitudes(
+    page,
+    qActivo,
+    estadoFiltro,
+  );
+
+  const buscar = (e) => {
+    e.preventDefault();
+    setPage(1);
+    setQActivo(busqueda);
+  };
 
   if (loading) return <p>Cargando solicitudes...</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
@@ -42,11 +55,38 @@ export default function ListaSolicitudes() {
         </Link>
       )}
       {user.role === "administrador" && (
-        <Link to="/tipos-licencia" style={{ marginRight: 12 }}>
-          Gestionar tipos de licencia
-        </Link>
+        <>
+          <Link to="/tipos-licencia" style={{ marginRight: 12 }}>
+            Gestionar tipos de licencia
+          </Link>
+          <Link to="/usuarios" style={{ marginRight: 12 }}>
+            Gestionar usuarios
+          </Link>
+        </>
       )}
-
+      <form onSubmit={buscar} style={{ margin: "12px 0" }}>
+        <input
+          placeholder="Buscar por ID, nombre o email del estudiante..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          style={{ width: 260, marginRight: 8 }}
+        />
+        <select
+          value={estadoFiltro}
+          onChange={(e) => {
+            setEstadoFiltro(e.target.value);
+            setPage(1);
+          }}
+          style={{ marginRight: 8 }}
+        >
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="en_revision">En revisión</option>
+          <option value="aprobada">Aprobada</option>
+          <option value="rechazada">Rechazada</option>
+        </select>
+        <button type="submit">Buscar</button>
+      </form>
       <table
         border="1"
         cellPadding="8"

@@ -62,10 +62,6 @@ export default function Login() {
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
-
-      <p style={{ marginTop: 16 }}>
-        ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
-      </p>
     </div>
   );
 }

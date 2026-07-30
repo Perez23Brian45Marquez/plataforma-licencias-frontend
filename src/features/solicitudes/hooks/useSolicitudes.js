@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { solicitudesApi } from '../api/solicitudesApi';
 
-export function useSolicitudes(page = 1) {
+export function useSolicitudes(page = 1, q = '', estado = '') {
   const [solicitudes, setSolicitudes] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -11,7 +11,7 @@ export function useSolicitudes(page = 1) {
     setLoading(true);
     setError('');
     try {
-      const response = await solicitudesApi.listar(page);
+      const response = await solicitudesApi.listar(page, q, estado);
       setSolicitudes(response.data.data);
       setMeta({
         currentPage: response.data.current_page,
@@ -23,7 +23,7 @@ export function useSolicitudes(page = 1) {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, q, estado]);
 
   useEffect(() => {
     cargar();

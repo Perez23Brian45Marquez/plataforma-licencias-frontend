@@ -6,6 +6,7 @@ import { solicitudesApi } from '../api/solicitudesApi';
 export default function NuevaSolicitud() {
   const [tipos, setTipos] = useState([]);
   const [tipoLicenciaId, setTipoLicenciaId] = useState('');
+  const [archivo, setArchivo] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -17,13 +18,20 @@ export default function NuevaSolicitud() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!archivo) {
+      setError('Debes adjuntar un documento justificativo para poder enviar la solicitud.');
+      return;
+    }
+
+    setLoading(true);
     try {
-      await solicitudesApi.crear(tipoLicenciaId);
+      await solicitudesApi.crear(tipoLicenciaId, archivo);
       navigate('/solicitudes');
     } catch (err) {
-      setError(err.response?.data?.message || 'No se pudo crear la solicitud.');
+      const errores = err.response?.data?.errors;
+      const primerError = errores ? Object.values(errores)[0][0] : null;
+      setError(primerError || err.response?.data?.message || 'No se pudo crear la solicitud.');
     } finally {
       setLoading(false);
     }
@@ -53,7 +61,18 @@ export default function NuevaSolicitud() {
           ))}
         </select>
 
-        <button type="submit" disabled={loading || !tipoLicenciaId}>
+        <label>Documento justificativo (PDF, JPG o PNG, máx. 5MB)</label>
+        <br />
+        <input
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={(e) => setArchivo(e.target.files[0])}
+          required
+          style={{ marginBottom: 12 }}
+        />
+
+        <br />
+        <button type="submit" disabled={loading || !tipoLicenciaId || !archivo}>
           {loading ? 'Enviando...' : 'Enviar solicitud'}
         </button>
       </form>

@@ -5,6 +5,7 @@ import NuevaSolicitud from "./features/solicitudes/components/NuevaSolicitud";
 import DetalleSolicitud from "./features/solicitudes/components/DetalleSolicitud";
 import { useAuth } from "./features/auth/context/AuthContext";
 import GestionTiposLicencia from "./features/tiposLicencia/components/GestionTiposLicencia";
+import GestionUsuarios from "./features/usuarios/components/GestionUsuarios";
 
 function App() {
   const { user, loading } = useAuth();
@@ -38,6 +39,16 @@ function App() {
         element={
           user?.role === "administrador" ? (
             <GestionTiposLicencia />
+          ) : (
+            <Navigate to="/solicitudes" />
+          )
+        }
+      />
+      <Route
+        path="/usuarios"
+        element={
+          user?.role === "administrador" ? (
+            <GestionUsuarios />
           ) : (
             <Navigate to="/solicitudes" />
           )

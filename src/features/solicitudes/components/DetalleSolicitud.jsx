@@ -115,6 +115,27 @@ export default function DetalleSolicitud() {
         </button>
       )}
 
+<h3 style={{ marginTop: 24 }}>Documentos justificativos</h3>
+      {solicitud.justificativos?.length > 0 ? (
+        <ul>
+          {solicitud.justificativos.map((j) => (
+            <li key={j.id}><a
+              
+                href={`http://127.0.0.1:8000/storage/${j.ruta}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {j.nombre_archivo}
+              </a>{' '}
+              <span style={{ color: '#888' }}>({(j.tamano / 1024).toFixed(0)} KB)</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p style={{ color: '#888' }}>Sin documentos adjuntos.</p>
+      )}
+
+
       <h3 style={{ marginTop: 24 }}>Historial</h3>
       <ul>
         {historial.map((h) => (
