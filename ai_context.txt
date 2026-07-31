@@ -1,0 +1,91 @@
+<!-- ============================================================ -->
+<!-- bck-nd-hlpr Context Dump — Generated: 2026-07-30 20:36               -->
+<!-- Paste this file into ChatGPT / Claude for instant AI context -->
+<!-- ============================================================ -->
+
+<project_tree>
+plataforma-licencias-frontend/
+├── src/
+│   ├── assets/
+│   │   ├── hero.png
+│   │   ├── react.svg
+│   │   └── vite.svg
+│   ├── components/
+│   │   └── api/
+│   │       └── axios.js
+│   ├── features/
+│   │   ├── auth/
+│   │   │   ├── api/
+│   │   │   ├── components/
+│   │   │   └── context/
+│   │   ├── solicitudes/
+│   │   │   ├── api/
+│   │   │   ├── components/
+│   │   │   └── hooks/
+│   │   ├── tiposLicencia/
+│   │   │   ├── api/
+│   │   │   ├── components/
+│   │   │   └── hooks/
+│   │   └── usuarios/
+│   │       ├── api/
+│   │       ├── components/
+│   │       └── hooks/
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   └── main.jsx
+├── .gitignore
+├── .oxlintrc.json
+├── index.html
+├── package.json
+├── README.md
+└── vite.config.js
+</project_tree>
+
+<architecture_uml>
+```mermaid
+classDiagram
+    namespace Root {
+      class App {
+        +render()
+      }
+    }
+    namespace auth {
+      class Login {
+        +render()
+      }
+      class AuthProvider {
+        +render( children )
+      }
+    }
+    namespace solicitudes {
+      class DetalleSolicitud {
+        +render()
+      }
+      class ListaSolicitudes {
+        +render()
+      }
+      class NuevaSolicitud {
+        +render()
+      }
+    }
+    namespace tiposLicencia {
+      class GestionTiposLicencia {
+        +render()
+      }
+    }
+    namespace usuarios {
+      class GestionUsuarios {
+        +render()
+      }
+    }
+```
+</architecture_uml>
+
+<architecture_er>
+<!-- No database models detected in this project. -->
+</architecture_er>
+
+<core_files>
+<!-- No core backend files detected. -->
+</core_files>

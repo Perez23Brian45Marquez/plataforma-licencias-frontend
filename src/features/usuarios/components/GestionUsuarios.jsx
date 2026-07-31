@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { usuariosApi } from '../api/usuariosApi';
 import { tiposLicenciaApi } from '../../tiposLicencia/api/tiposLicenciaApi';
 
@@ -26,7 +25,7 @@ export default function GestionUsuarios() {
   const [editandoId, setEditandoId] = useState(null);
   const [editandoRole, setEditandoRole] = useState('estudiante');
 
-  const cargar = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -35,16 +34,20 @@ export default function GestionUsuarios() {
         tiposLicenciaApi.listar(),
       ]);
       setUsuarios(resUsuarios.data.data);
-      setMeta({ currentPage: resUsuarios.data.current_page, lastPage: resUsuarios.data.last_page, total: resUsuarios.data.total });
+      setMeta({
+        currentPage: resUsuarios.data.current_page,
+        lastPage: resUsuarios.data.last_page,
+        total: resUsuarios.data.total
+      });
       setTipos(resTipos.data);
-    } catch (err) {
+    } catch (_err) {
       setError('No se pudieron cargar los usuarios.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [rolActivo, page, busqueda]);
 
-  useEffect(() => { cargar(); }, [rolActivo, page]);
+  useEffect(() => { cargar(); }, [cargar]);
 
   const buscar = (e) => {
     e.preventDefault();
@@ -123,141 +126,241 @@ export default function GestionUsuarios() {
     }
   };
 
+  const rolLabelSingular = ROLES.find((r) => r.value === (editandoId ? editandoRole : rolActivo))?.label.replace(/es$/, 'e').replace(/s$/, '');
+
   return (
-    <div style={{ maxWidth: 900, margin: '40px auto' }}>
-      <Link to="/solicitudes">← Volver</Link>
-      <h2>Gestión de usuarios</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div>
+      <div className="upds-card upds-card-accent" style={{ marginBottom: '20px', padding: '20px 24px' }}>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--upds-navy)', margin: '0 0 4px' }}>
+          Gestión de Usuarios
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: 'var(--upds-text-muted)' }}>
+          Administración de cuentas y asignación de permisos para tipos de licencia.
+        </p>
 
-      <div style={{ marginBottom: 16 }}>
-        {ROLES.map((r) => (
-          <button
-            key={r.value}
-            onClick={() => cambiarPestana(r.value)}
-            style={{ marginRight: 8, fontWeight: rolActivo === r.value ? 'bold' : 'normal' }}
-          >
-            {r.label}
+        {/* Role Tabs */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderBottom: '1px solid var(--upds-border)', paddingBottom: '12px' }}>
+          {ROLES.map((r) => (
+            <button
+              key={r.value}
+              type="button"
+              onClick={() => cambiarPestana(r.value)}
+              className={`upds-btn ${rolActivo === r.value ? 'upds-btn-primary' : 'upds-btn-outline'}`}
+              style={{ fontSize: '0.9rem', padding: '7px 16px' }}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && <div className="upds-alert upds-alert-danger">{error}</div>}
+
+      {/* Action and Search Header */}
+      <div className="upds-card" style={{ padding: '16px 24px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <button onClick={abrirNuevo} className="upds-btn upds-btn-success">
+            + Nuevo {rolLabelSingular}
           </button>
-        ))}
+
+          <form onSubmit={buscar} style={{ display: 'flex', gap: '8px' }}>
+            <input
+              className="upds-input"
+              placeholder="Buscar por nombre o email..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              style={{ width: '240px' }}
+            />
+            <button type="submit" className="upds-btn upds-btn-primary">
+              Buscar
+            </button>
+          </form>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <button onClick={abrirNuevo}>
-          + Nuevo {ROLES.find((r) => r.value === rolActivo)?.label.toLowerCase().replace(/s$/, '')}
-        </button>
-
-        <form onSubmit={buscar}>
-          <input
-            placeholder="Buscar por nombre o email..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            style={{ width: 220 }}
-          />
-          <button type="submit">Buscar</button>
-        </form>
-      </div>
-
+      {/* User Create / Edit Form Card */}
       {mostrarForm && (
-        <form onSubmit={guardarUsuario} style={{ margin: '16px 0', padding: 12, border: '1px solid #444' }}>
-          {errorForm && <p style={{ color: 'red' }}>{errorForm}</p>}
+        <div className="upds-card upds-card-accent" style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--upds-navy)', marginBottom: '16px' }}>
+            {editandoId ? `Editar ${rolLabelSingular}` : `Crear Nuevo ${rolLabelSingular}`}
+          </h3>
 
-          <p style={{ color: '#888', fontSize: 13 }}>
-            Rol: <strong>{ROLES.find((r) => r.value === (editandoId ? editandoRole : rolActivo))?.label.replace(/s$/, '')}</strong>
-          </p>
+          {errorForm && <div className="upds-alert upds-alert-danger">{errorForm}</div>}
 
-          <input
-            placeholder="Nombre"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-            style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          />
-          <input
-            type="password"
-            placeholder={editandoId ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña (mínimo 8 caracteres)'}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required={!editandoId}
-            style={{ display: 'block', width: '100%', marginBottom: 8 }}
-          />
+          <form onSubmit={guardarUsuario}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              <div className="upds-form-group">
+                <label className="upds-label">Nombre Completo *</label>
+                <input
+                  className="upds-input"
+                  placeholder="Ej. Juan Pérez"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
 
-          {(editandoId ? editandoRole : rolActivo) === 'revisor' && (
-            <div style={{ marginBottom: 8 }}>
-              <p style={{ marginBottom: 4 }}>Tipos de licencia que puede revisar:</p>
-              {tipos.map((t) => (
-                <label key={t.id} style={{ display: 'block' }}>
-                  <input
-                    type="checkbox"
-                    checked={form.tipo_licencia_ids.includes(t.id)}
-                    onChange={() => toggleTipoForm(t.id)}
-                  />{' '}
-                  {t.nombre}
+              <div className="upds-form-group">
+                <label className="upds-label">Correo Electrónico *</label>
+                <input
+                  type="email"
+                  className="upds-input"
+                  placeholder="ejemplo@upds.edu.bo"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="upds-form-group">
+                <label className="upds-label">Contraseña {editandoId && '(Dejar en blanco para no cambiar)'}</label>
+                <input
+                  type="password"
+                  className="upds-input"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required={!editandoId}
+                />
+              </div>
+            </div>
+
+            {/* License Type assignment checkboxes for Reviewers */}
+            {(editandoId ? editandoRole : rolActivo) === 'revisor' && (
+              <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '6px', border: '1px solid var(--upds-border)', marginBottom: '20px' }}>
+                <label className="upds-label" style={{ marginBottom: '8px' }}>
+                  Tipos de Licencia que puede Revisar:
                 </label>
-              ))}
-            </div>
-          )}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
+                  {tipos.map((t) => (
+                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={form.tipo_licencia_ids.includes(t.id)}
+                        onChange={() => toggleTipoForm(t.id)}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--upds-navy)' }}
+                      />
+                      <span>{t.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          <button type="submit">{editandoId ? 'Guardar cambios' : 'Crear'}</button>
-          <button type="button" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
-        </form>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="upds-btn upds-btn-secondary"
+                onClick={() => { setMostrarForm(false); setEditandoId(null); }}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="upds-btn upds-btn-primary">
+                {editandoId ? 'Guardar Cambios' : 'Crear Usuario'}
+              </button>
+            </div>
+          </form>
+        </div>
       )}
 
-      {loading ? (
-        <p>Cargando...</p>
-      ) : (
-        <>
-          <table border="1" cellPadding="8" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 16 }}>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                {rolActivo === 'estudiante' && <th>Código</th>}
-                {rolActivo === 'revisor' && <th>Tipos asignados</th>}
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usuarios.length === 0 && (
-                <tr><td colSpan="5" style={{ textAlign: 'center' }}>Sin registros.</td></tr>
-              )}
-              {usuarios.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.name}</td>
-                  <td>{u.email}</td>
-                  {rolActivo === 'estudiante' && <td>{u.codigo_estudiante || '—'}</td>}
-                  {rolActivo === 'revisor' && (
-                    <td>
-                      {(u.tipos_licencia_asignados || []).length > 0
-                        ? u.tipos_licencia_asignados.map((t) => t.nombre).join(', ')
-                        : <span style={{ color: '#888' }}>Sin tipos asignados</span>}
-                    </td>
-                  )}
-                  <td>
-                    <button onClick={() => abrirEdicion(u)}>Editar</button>
-                    <button onClick={() => eliminarUsuario(u.id)}>Eliminar</button>
-                  </td>
+      {/* Users Table */}
+      <div className="upds-card" style={{ padding: 0 }}>
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--upds-navy)', fontWeight: 600 }}>
+            Cargando usuarios...
+          </div>
+        ) : (
+          <div className="upds-table-container">
+            <table className="upds-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Email</th>
+                  {rolActivo === 'estudiante' && <th>Código Estudiante</th>}
+                  {rolActivo === 'revisor' && <th>Tipos de Licencia Asignados</th>}
+                  <th style={{ textAlign: 'right' }}>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {usuarios.length === 0 ? (
+                  <tr>
+                    <td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--upds-text-muted)' }}>
+                      Sin registros en esta categoría.
+                    </td>
+                  </tr>
+                ) : (
+                  usuarios.map((u) => (
+                    <tr key={u.id}>
+                      <td style={{ fontWeight: 600 }}>{u.name}</td>
+                      <td>{u.email}</td>
+                      {rolActivo === 'estudiante' && <td>{u.codigo_estudiante || '—'}</td>}
+                      {rolActivo === 'revisor' && (
+                        <td>
+                          {(u.tipos_licencia_asignados || []).length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {u.tipos_licencia_asignados.map((t) => (
+                                <span key={t.id} style={{ background: '#e9ecef', color: '#495057', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 600 }}>
+                                  {t.nombre}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--upds-text-muted)', fontSize: '0.85rem' }}>Sin tipos asignados</span>
+                          )}
+                        </td>
+                      )}
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '8px' }}>
+                          <button
+                            onClick={() => abrirEdicion(u)}
+                            className="upds-btn upds-btn-outline"
+                            style={{ padding: '4px 10px', fontSize: '0.85rem' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => eliminarUsuario(u.id)}
+                            className="upds-btn upds-btn-danger"
+                            style={{ padding: '4px 10px', fontSize: '0.85rem' }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {meta && meta.lastPage > 1 && (
-            <div style={{ marginTop: 16 }}>
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</button>
-              <span style={{ margin: '0 12px' }}>Página {meta.currentPage} de {meta.lastPage} ({meta.total} total)</span>
-              <button disabled={page >= meta.lastPage} onClick={() => setPage((p) => p + 1)}>Siguiente</button>
+        {meta && meta.lastPage > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid var(--upds-border)' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--upds-text-muted)' }}>
+              Página <strong>{meta.currentPage}</strong> de <strong>{meta.lastPage}</strong> ({meta.total} usuarios)
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="upds-btn upds-btn-outline"
+                style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Anterior
+              </button>
+              <button
+                className="upds-btn upds-btn-outline"
+                style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                disabled={page >= meta.lastPage}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Siguiente
+              </button>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

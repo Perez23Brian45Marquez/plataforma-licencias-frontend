@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/context/AuthContext';
 import { solicitudesApi } from '../api/solicitudesApi';
+import api from '../../../components/api/axios';
+
+const ESTADO_BADGES = {
+  pendiente: { label: 'PENDIENTE', className: 'status-badge-pendiente' },
+  en_revision: { label: 'EN REVISION', className: 'status-badge-en_revision' },
+  aprobada: { label: 'APROBADA', className: 'status-badge-aprobada' },
+  rechazada: { label: 'RECHAZADA', className: 'status-badge-rechazada' },
+};
 
 export default function DetalleSolicitud() {
   const { id } = useParams();
@@ -14,6 +22,7 @@ export default function DetalleSolicitud() {
   const [error, setError] = useState('');
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [actualizando, setActualizando] = useState(false);
+  const [descargandoId, setDescargandoId] = useState(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -35,15 +44,15 @@ export default function DetalleSolicitud() {
     cargar();
   }, [cargar]);
 
-  const cambiarEstado = async (estado) => {
-    if (estado === 'rechazada' && !motivoRechazo.trim()) {
-      setError('Debes indicar un motivo de rechazo.');
+  const cambiarEstado = async (nuevoEstado) => {
+    if (nuevoEstado === 'rechazada' && !motivoRechazo.trim()) {
+      setError('Debes indicar un motivo de rechazo para rechazar la solicitud.');
       return;
     }
     setActualizando(true);
     setError('');
     try {
-      await solicitudesApi.actualizarEstado(id, estado, motivoRechazo || null);
+      await solicitudesApi.actualizarEstado(id, nuevoEstado, motivoRechazo.trim() || null);
       await cargar();
       setMotivoRechazo('');
     } catch (err) {
@@ -63,89 +72,294 @@ export default function DetalleSolicitud() {
     }
   };
 
-  if (loading) return <p>Cargando...</p>;
-  if (error && !solicitud) return <p style={{ color: 'red' }}>{error}</p>;
+  const descargarArchivo = async (justificativoId, nombreArchivo) => {
+    setDescargandoId(justificativoId);
+    try {
+      const response = await api.get(`/justificativos/${justificativoId}/descargar`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', nombreArchivo || `justificativo_${justificativoId}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      // Fallback direct endpoint link open
+      window.open(`http://127.0.0.1:8000/api/justificativos/${justificativoId}/descargar`, '_blank');
+    } finally {
+      setDescargandoId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px' }}>
+        <p style={{ fontWeight: 600, color: 'var(--upds-navy)' }}>Cargando detalle de la solicitud...</p>
+      </div>
+    );
+  }
+
+  if (error && !solicitud) {
+    return (
+      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+        <Link to="/solicitudes" className="upds-back-link">← Volver a solicitudes</Link>
+        <div className="upds-alert upds-alert-danger">{error}</div>
+      </div>
+    );
+  }
+
   if (!solicitud) return null;
 
-  const puedeRevisar = ['revisor', 'administrador'].includes(user.role);
+  const esRevisorOAdmin = ['revisor', 'administrador'].includes(user.role);
   const puedeCancelar =
     user.role === 'estudiante' && solicitud.user_id === user.id && solicitud.estado === 'pendiente';
 
+  const badgeInfo = ESTADO_BADGES[solicitud.estado] || { label: solicitud.estado, className: '' };
+
   return (
-    <div style={{ maxWidth: 600, margin: '40px auto' }}>
-      <Link to="/solicitudes">← Volver</Link>
-      <h2>Solicitud #{solicitud.id}</h2>
+    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <Link to="/solicitudes" className="upds-back-link">
+        ← Volver a solicitudes
+      </Link>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      <p><strong>Tipo:</strong> {solicitud.tipo_licencia?.nombre}</p>
-      <p><strong>Estudiante:</strong> {solicitud.estudiante?.name}</p>
-      <p><strong>Revisor:</strong> {solicitud.revisor?.name ?? 'Sin asignar'}</p>
-      <p><strong>Estado:</strong> {solicitud.estado}</p>
-      <p><strong>Fecha de solicitud:</strong> {new Date(solicitud.fecha_solicitud).toLocaleString()}</p>
-      {solicitud.motivo_rechazo && <p><strong>Motivo de rechazo:</strong> {solicitud.motivo_rechazo}</p>}
-
-      {puedeRevisar && solicitud.estado === 'pendiente' && (
-        <button disabled={actualizando} onClick={() => cambiarEstado('en_revision')}>
-          Tomar para revisión
-        </button>
-      )}
-
-      {puedeRevisar && solicitud.estado === 'en_revision' && (
-        <div style={{ marginTop: 12 }}>
-          <button disabled={actualizando} onClick={() => cambiarEstado('aprobada')}>
-            Aprobar
-          </button>
-          <div style={{ marginTop: 8 }}>
-            <input
-              placeholder="Motivo de rechazo"
-              value={motivoRechazo}
-              onChange={(e) => setMotivoRechazo(e.target.value)}
-            />
-            <button disabled={actualizando} onClick={() => cambiarEstado('rechazada')}>
-              Rechazar
-            </button>
+      <div className="upds-card upds-card-accent">
+        <div className="upds-card-header">
+          <div>
+            <h2 className="upds-card-title" style={{ margin: 0 }}>
+              Solicitud #{solicitud.id}
+            </h2>
+            <span style={{ fontSize: '0.85rem', color: 'var(--upds-text-muted)' }}>
+              Registrada el {new Date(solicitud.fecha_solicitud).toLocaleString()}
+            </span>
+          </div>
+          <div>
+            <span className={`status-badge ${badgeInfo.className}`}>
+              {badgeInfo.label}
+            </span>
           </div>
         </div>
-      )}
 
-      {puedeCancelar && (
-        <button onClick={cancelar} style={{ marginTop: 12 }}>
-          Cancelar solicitud
-        </button>
-      )}
+        {error && <div className="upds-alert upds-alert-danger">{error}</div>}
 
-<h3 style={{ marginTop: 24 }}>Documentos justificativos</h3>
-      {solicitud.justificativos?.length > 0 ? (
-        <ul>
-          {solicitud.justificativos.map((j) => (
-            <li key={j.id}><a
-              
-                href={`http://127.0.0.1:8000/storage/${j.ruta}`}
-                target="_blank"
-                rel="noopener noreferrer"
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '4px', border: '1px solid #e9ecef' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--upds-text-muted)', display: 'block', fontWeight: 600 }}>TIPO DE LICENCIA</span>
+            <span style={{ fontWeight: 600, color: 'var(--upds-navy)', fontSize: '1rem' }}>
+              {solicitud.tipo_licencia?.nombre || 'N/A'}
+            </span>
+          </div>
+
+          <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '4px', border: '1px solid #e9ecef' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--upds-text-muted)', display: 'block', fontWeight: 600 }}>ESTUDIANTE</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+              {solicitud.estudiante?.name || 'N/A'}
+            </span>
+            {solicitud.estudiante?.email && (
+              <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--upds-text-muted)' }}>
+                {solicitud.estudiante.email}
+              </span>
+            )}
+          </div>
+
+          <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '4px', border: '1px solid #e9ecef' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--upds-text-muted)', display: 'block', fontWeight: 600 }}>REVISOR ASIGNADO</span>
+            <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+              {solicitud.revisor?.name ?? 'Sin asignar'}
+            </span>
+          </div>
+        </div>
+
+        {solicitud.motivo_rechazo && (
+          <div style={{ background: '#fff5f5', borderLeft: '4px solid var(--btn-danger)', padding: '14px 16px', borderRadius: '4px', marginBottom: '24px' }}>
+            <h4 style={{ color: 'var(--btn-danger)', fontSize: '0.9rem', marginBottom: '4px' }}>Motivo de Rechazo:</h4>
+            <p style={{ fontSize: '0.95rem', color: '#2c3e50' }}>{solicitud.motivo_rechazo}</p>
+          </div>
+        )}
+
+        {/* Action Panel for Revisor / Admin */}
+        {esRevisorOAdmin && (
+          <div style={{ backgroundColor: '#f4f6f9', border: '1px solid var(--upds-border)', borderRadius: '6px', padding: '20px', marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--upds-navy)', marginBottom: '12px' }}>
+              Acciones de Revisión de Estado
+            </h3>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                className="upds-btn"
+                style={{ backgroundColor: 'var(--badge-pendiente-bg)', color: 'var(--badge-pendiente-text)' }}
+                disabled={actualizando || solicitud.estado === 'pendiente'}
+                onClick={() => cambiarEstado('pendiente')}
               >
-                {j.nombre_archivo}
-              </a>{' '}
-              <span style={{ color: '#888' }}>({(j.tamano / 1024).toFixed(0)} KB)</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p style={{ color: '#888' }}>Sin documentos adjuntos.</p>
-      )}
+                PENDIENTE
+              </button>
 
+              <button
+                type="button"
+                className="upds-btn"
+                style={{ backgroundColor: 'var(--badge-revision-bg)', color: 'var(--badge-revision-text)' }}
+                disabled={actualizando || solicitud.estado === 'en_revision'}
+                onClick={() => cambiarEstado('en_revision')}
+              >
+                EN REVISION
+              </button>
 
-      <h3 style={{ marginTop: 24 }}>Historial</h3>
-      <ul>
-        {historial.map((h) => (
-          <li key={h.id}>
-            {h.estado_anterior ?? '—'} → {h.estado_nuevo} por {h.usuario?.name} el{' '}
-            {new Date(h.created_at).toLocaleString()}
-            {h.comentario && ` — "${h.comentario}"`}
-          </li>
-        ))}
-      </ul>
+              <button
+                type="button"
+                className="upds-btn upds-btn-success"
+                disabled={actualizando || solicitud.estado === 'aprobada'}
+                onClick={() => cambiarEstado('aprobada')}
+              >
+                APROBADA
+              </button>
+
+              <button
+                type="button"
+                className="upds-btn upds-btn-danger"
+                disabled={actualizando || solicitud.estado === 'rechazada'}
+                onClick={() => cambiarEstado('rechazada')}
+              >
+                RECHAZADA
+              </button>
+            </div>
+
+            {/* Motivo de rechazo input field */}
+            <div style={{ marginTop: '12px' }}>
+              <label className="upds-label">
+                Motivo de Rechazo <span style={{ color: 'var(--btn-danger)', fontWeight: 400 }}>(Requerido para rechazar)</span>
+              </label>
+              <textarea
+                className="upds-textarea"
+                rows="2"
+                placeholder="Escribe la razón del rechazo..."
+                value={motivoRechazo}
+                onChange={(e) => setMotivoRechazo(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Student Cancel Option */}
+        {puedeCancelar && (
+          <div style={{ marginBottom: '24px' }}>
+            <button onClick={cancelar} className="upds-btn upds-btn-danger">
+              Cancelar Solicitud
+            </button>
+          </div>
+        )}
+
+        {/* Documentos Justificativos Section */}
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--upds-navy)', marginBottom: '12px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
+            Documentos Justificativos
+          </h3>
+
+          {solicitud.justificativos?.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {solicitud.justificativos.map((j) => (
+                <div
+                  key={j.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    border: '1px solid var(--upds-border)',
+                    borderRadius: '4px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--upds-navy)" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                    </svg>
+                    <div>
+                      <span style={{ fontWeight: 600, display: 'block', fontSize: '0.95rem' }}>
+                        {j.nombre_archivo}
+                      </span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--upds-text-muted)' }}>
+                        {(j.tamano / 1024).toFixed(0)} KB
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="upds-btn upds-btn-primary"
+                      style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                      disabled={descargandoId === j.id}
+                      onClick={() => descargarArchivo(j.id, j.nombre_archivo)}
+                    >
+                      {descargandoId === j.id ? 'Descargando...' : 'Ver / Descargar'}
+                    </button>
+                    <a
+                      href={`http://127.0.0.1:8000/api/justificativos/${j.id}/descargar`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="upds-btn upds-btn-outline"
+                      style={{ padding: '6px 12px', fontSize: '0.85rem', textDecoration: 'none' }}
+                    >
+                      Enlace Directo
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--upds-text-muted)', fontStyle: 'italic' }}>
+              Sin documentos adjuntos.
+            </p>
+          )}
+        </div>
+
+        {/* Historial Section */}
+        <div style={{ marginTop: '28px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--upds-navy)', marginBottom: '12px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
+            Historial de Cambios
+          </h3>
+          {historial.length > 0 ? (
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              {historial.map((h) => (
+                <li
+                  key={h.id}
+                  style={{
+                    padding: '10px 0',
+                    borderBottom: '1px solid #f0f0f0',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>
+                      <strong>{h.usuario?.name || 'Usuario'}</strong> cambió el estado de{' '}
+                      <span className="status-badge" style={{ fontSize: '0.75rem', padding: '2px 6px' }}>{h.estado_anterior || 'Inicio'}</span>
+                      {' → '}
+                      <span className="status-badge" style={{ fontSize: '0.75rem', padding: '2px 6px' }}>{h.estado_nuevo}</span>
+                    </span>
+                    <span style={{ color: 'var(--upds-text-muted)', fontSize: '0.8rem' }}>
+                      {new Date(h.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {h.comentario && (
+                    <p style={{ color: 'var(--upds-text-muted)', fontSize: '0.85rem', fontStyle: 'italic', marginTop: '2px' }}>
+                      "{h.comentario}"
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ color: 'var(--upds-text-muted)', fontStyle: 'italic' }}>
+              Sin registros en el historial.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
