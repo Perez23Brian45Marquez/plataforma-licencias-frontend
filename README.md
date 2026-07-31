@@ -1,31 +1,43 @@
-# Plataforma de Gestión de Licencias Académicas - Backend (API REST)
 
-Backend en Laravel 11 desarrollado para la materia **Tecnología Web 2**. Este sistema expone un API RESTful con autenticación por tokens (Sanctum), control de accesos basado en roles (RBAC) y soporte para almacenamiento y transmisión segura de documentos justificativos.
+# Plataforma de Gestión de Licencias Académicas - Frontend (React + Vite)
+
+Aplicación Single Page Application (SPA) desarrollada en React + Vite para la materia **Tecnología Web 2**, diseñada bajo la identidad visual institucional del Portal Académico de la **Universidad Privada Domingo Savio (UPDS)**.
 
 ---
 
 ## Tecnologías Utilizadas
 
-- **Framework:** Laravel 11
-- **Lenguaje:** PHP 8.3+
-- **Base de Datos:** PostgreSQL 17
-- **Autenticación:** Laravel Sanctum (Personal Access Tokens)
-- **Pruebas Automatizadas:** PHPUnit / Pest Feature Tests
+- **Librería UI:** React 18
+- **Herramienta de Compilación:** Vite
+- **Cliente HTTP:** Axios (con interceptores para Tokens Sanctum)
+- **Estilos:** CSS3 institucional (Azul Marino UPDS `#0f4c81`, tarjetas académicas blancas `#ffffff`, fondo `#f4f6f9` y badges de estado en colores planos).
 
 ---
 
-## Control de Accesos Basado en Roles (RBAC)
+## Arquitectura Modular por Features
 
-1. **Estudiante:**
-   - Puede crear solicitudes obligatoriamente adjuntando un documento justificativo (PDF/Imagen).
-   - Solo puede visualizar sus propias solicitudes y documentos adjuntos.
-2. **Revisor:**
-   - Filtrado automático: solo visualiza las solicitudes asociadas a los tipos de licencias asignadas en la tabla pivote `revisor_tipo_licencia`.
-   - Puede evaluar las solicitudes y transicionar su estado entre `PENDIENTE`, `EN_REVISION`, `APROBADA` o `RECHAZADA` (exigiendo un motivo si se rechaza).
-3. **Administrador:**
-   - Control total del sistema.
-   - Gestión de Usuarios (creación de estudiantes y asignación de tipos de licencia a revisores).
-   - CRUD completo de Tipos de Licencia y Solicitudes.
+La estructura sigue un patrón modular limpio dentro de `src/features/`:
+
+src/
+├── components/ # Componentes globales (Header institucional, Axios instance)
+└── features/
+├── auth/ # Contexto de Autenticación, Login y Token Storage
+├── solicitudes/ # Lista, Formulario con File Upload, Detalle y Cambio de Estado
+├── tiposLicencia/ # Gestión CRUD de tipos de licencias académicas
+└── usuarios/ # Panel de administración de usuarios y asignación de revisores
+code Code
+
+---
+
+## Características Destacadas
+
+- **Diseño Institucional UPDS:** Navegador superior azul marino con pestañas horizontales y perfil de usuario activo.
+- **Validación de Subida:** Deshabilitación de envío si el estudiante no adjunta un documento justificativo (PDF/Imagen).
+- **Visualizador y Descargador de Documentos:** Descarga segura de archivos justificativos mediante consumo de `blob` autenticado.
+- **Vistas dinámicas según el Rol:**
+  - **Estudiantes:** Formulario de solicitud y vista de detalles en modo solo lectura.
+  - **Revisores:** Filtro automático de licencias asignadas y botones de evaluación rápida (`Aprobar` / `Rechazar` con motivo obligatorio).
+  - **Administradores:** Control total de solicitudes, usuarios y permisos.
 
 ---
 
@@ -34,62 +46,32 @@ Backend en Laravel 11 desarrollado para la materia **Tecnología Web 2**. Este s
 1. **Clonar el repositorio y entrar a la carpeta:**
    ```bash
    git clone <URL_REPOSITORIO>
-   cd plataforma-licencias
+   cd plataforma-licencias-frontend
 
-    Instalar dependencias de PHP:
+    Instalar dependencias de NPM:
     code Bash
 
-    composer install
+    npm install
 
-    Configurar el archivo de entorno .env:
-    Copia el archivo de ejemplo:
+    Verificar la configuración de Axios (src/components/api/axios.js):
+    Asegúrate de que apunte al servidor backend de Laravel:
+    code JavaScript
+
+    baseURL: 'http://127.0.0.1:8000/api'
+
+    Iniciar el servidor de desarrollo de Vite:
     code Bash
 
-    cp .env.example .env
+    npm run dev
 
-    Asegúrate de configurar la conexión a PostgreSQL:
-    code Env
+    Abrir en el navegador:
+    Ingresa a http://localhost:5173.
 
-    DB_CONNECTION=pgsql
-    DB_HOST=127.0.0.1
-    DB_PORT=5432
-    DB_DATABASE=plataforma_licencias
-    DB_USERNAME=postgres
-    DB_PASSWORD=tu_contraseña
-    APP_URL=http://127.0.0.1:8000
+   ```
 
-    Generar la clave de la aplicación:
-    code Bash
+Credenciales de Prueba
 
-    php artisan key:generate
+    Administrador: admin@admin.com / password
 
-    Ejecutar Migraciones y Seeders:
-    code Bash
+    Estudiantes y Revisores: Correo institucional registrado / password
 
-    php artisan migrate:fresh --seed
-
-    (Opcional) Generador Masivo de Datos:
-    Para poblar la base de datos con registros para pruebas de rendimiento:
-    code Bash
-
-    php artisan generar:solicitudes 100000
-
-    Ejecutar Pruebas Automatizadas:
-    code Bash
-
-    php artisan test
-
-    Iniciar el Servidor Local:
-    code Bash
-
-    php artisan serve --host=0.0.0.0 --port=8000
-
-Endpoints Principales de la API
-Método	Endpoint	Descripción
-POST	/api/login	Autenticación y emisión de token Sanctum
-GET	/api/solicitudes	Lista solicitudes según el rol del usuario autenticado
-POST	/api/solicitudes	Crea solicitud con justificativo obligatorio
-PUT	/api/solicitudes/{id}/estado	Cambia estado de solicitud (Revisor/Admin)
-GET	/api/justificativos/{id}/descargar	Descarga/transmite el archivo justificativo
-GET	/api/tipos-licencia	Lista tipos de licencias académicas
-POST	/api/users/{id}/tipos-licencia	Asigna licencias a un revisor (Admin)
